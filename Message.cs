@@ -26,6 +26,132 @@ namespace RosSharp.RosBridgeClient
         }
     }
 
+
+	// actionlib_msgs
+	public class ActionGoalStatusArray : Message
+	{
+		public StandardHeader header;
+		public ActionGoalStatus[] status_list;
+		public ActionGoalStatusArray()
+		{
+			header = new StandardHeader();
+			status_list = new ActionGoalStatus[0];
+		}
+	}
+
+	public class ActionGoalStatus : Message
+	{
+		/*
+        uint PENDING = 0;
+        uint ACTIVE = 1;
+        uint PREEMPTED = 2;
+        uint SUCCEEDED = 3;
+        uint ABORTED = 4;
+        uint REJECTED = 5;
+        uint PREEMPTING = 6;
+        uint RECALLING = 7;
+        uint RECALLED = 8;
+        uint LOST = 9;
+        */
+		public ActionGoalID goal_id;
+		public uint status;
+		public string text;
+		public ActionGoalStatus()
+		{
+			goal_id = new ActionGoalID();
+			status = 0;
+			text = "";
+		}
+	}
+
+	public class ActionGoalID
+	{
+		public StandardTime stamp;
+		public string id;
+		public ActionGoalID()
+		{
+			stamp = new StandardTime();
+			id = "";
+		}
+	}
+
+	// move_base_msgs
+	public class MoveBaseActionFeedback
+	{
+		public StandardHeader header;
+		public ActionGoalStatus status;
+		public MoveBaseFeedback feedback;
+		public MoveBaseActionFeedback()
+		{
+			header = new StandardHeader();
+			status = new ActionGoalStatus();
+			feedback = new MoveBaseFeedback();
+		}
+	}
+
+	public class MoveBaseFeedback
+	{
+		public GeometryPoseStamped base_position;
+		public MoveBaseFeedback()
+		{
+			base_position = new GeometryPoseStamped();
+		}
+	}
+
+	public class MoveBaseActionResult
+	{
+		public StandardHeader header;
+		public ActionGoalStatus status;
+		public MoveBaseResult result;
+		public MoveBaseActionResult()
+		{
+			header = new StandardHeader();
+			status = new ActionGoalStatus();
+			result = new MoveBaseResult();
+		}
+	}
+
+	public class MoveBaseResult
+	{
+		public MoveBaseResult()
+		{
+		}
+	}
+
+	public class TFMessage : Message
+	{
+		public GeometryTransformStamped[] transforms;
+		public TFMessage()
+		{
+			transforms = new GeometryTransformStamped[0];
+		}
+	}
+
+	// geometry_msgs
+	public class GeometryTransformStamped : Message
+	{
+		public StandardHeader header;
+		public string child_frame_id;
+		public GeometryTransform transform;
+		public GeometryTransformStamped()
+		{
+			header = new StandardHeader();
+			child_frame_id = "";
+			transform = new GeometryTransform();
+		}
+	}
+
+	public class GeometryTransform : Message
+	{
+		public GeometryVector3 translation;
+		public GeometryQuaternion rotation;
+		public GeometryTransform()
+		{
+			translation = new GeometryVector3();
+			rotation = new GeometryQuaternion();
+		}
+	}
+
     public class GeometryTwist : Message
     {
         public GeometryVector3 linear;
@@ -36,6 +162,7 @@ namespace RosSharp.RosBridgeClient
             angular = new GeometryVector3();
         }
     }
+
     public class StandardString : Message
     {
         public string data;
@@ -72,6 +199,7 @@ namespace RosSharp.RosBridgeClient
             effort = new float[0];
         }
     }
+
     public class GeometryVector3 : Message
     {
         public float x;
@@ -84,12 +212,12 @@ namespace RosSharp.RosBridgeClient
             z = 0f;
         }
     }
+
     public class SensorJoy : Message
     {
         public StandardHeader header;
         public float[] axes;
         public int[] buttons;
-
         public SensorJoy()
         {
             header = new StandardHeader();
@@ -112,6 +240,7 @@ namespace RosSharp.RosBridgeClient
             twist = new GeometryTwistWithCovariance();
         }
     }
+
     public class StandardHeader : Message
     {
         public int seq;
@@ -135,6 +264,7 @@ namespace RosSharp.RosBridgeClient
             covariance = new float[32];
         }
     }
+
     public class GeometryTwistWithCovariance : Message
     {
         public GeometryTwist twist;
@@ -180,6 +310,7 @@ namespace RosSharp.RosBridgeClient
             z = 0;
         }
     }
+
     public class GeometryQuaternion : Message
     {
         public float x;
@@ -194,6 +325,7 @@ namespace RosSharp.RosBridgeClient
             w = 0;
         }
     }
+
     public class SensorPointCloud2 : Message
     {
         public StandardHeader header;
@@ -219,6 +351,7 @@ namespace RosSharp.RosBridgeClient
             data = new byte[0];
         }
     }
+
     public class SensorPointField : Message
     {
         public int datatype;
@@ -233,6 +366,7 @@ namespace RosSharp.RosBridgeClient
             count = 0;
         }
     }
+
     public class SensorImage : Message
     {
         public StandardHeader header;
@@ -253,6 +387,7 @@ namespace RosSharp.RosBridgeClient
             data = new byte[0];
         }
     }
+
     public class SensorCompressedImage : Message
     {
         public StandardHeader header;
@@ -265,6 +400,33 @@ namespace RosSharp.RosBridgeClient
             data = new byte[0];
         }
     }
+
+	public class SensorLaserScan : Message
+	{
+		public StandardHeader header;
+		public float angle_min;
+		public float angle_max;
+		public float angle_increment;
+		public float time_increment;
+		public float scan_time;
+		public float range_min;
+		public float range_max;
+		public float[] ranges;
+		public float[] intensities;
+		public SensorLaserScan()
+		{
+			header = new StandardHeader();
+			angle_min = 0;
+			angle_max = 0;
+			angle_increment = 0;
+			time_increment = 0;
+			scan_time = 0;
+			range_min = 0;
+			range_max = 0;
+			ranges = new float[0];
+			intensities = new float[0];
+		}
+	}
 
     public class StandardTime : Message
     {
@@ -284,8 +446,7 @@ namespace RosSharp.RosBridgeClient
         public uint width;
         public uint height;
         public GeometryPose origin;
-
-        public NavigationMapMetaData()
+		public NavigationMapMetaData()
         {
             map_load_time = null;
             resolution = 0;
@@ -307,6 +468,17 @@ namespace RosSharp.RosBridgeClient
             data = null;
         }
     }
+
+	public class NavigationPath : Message
+	{
+		public StandardHeader header;
+		public GeometryPoseStamped[] poses;
+		public NavigationPath()
+		{
+			header = new StandardHeader();
+			poses = new GeometryPoseStamped[0];
+		}
+	}
 
     public class ParamName : Message
     {

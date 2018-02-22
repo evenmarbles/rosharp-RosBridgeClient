@@ -23,6 +23,16 @@ namespace RosSharp.RosBridgeClient
     {
         public static readonly Dictionary<string, Type> Dictionary = new Dictionary<string, Type>
         {
+			{ "actionlib_msgs/GoalStatusArray", typeof(ActionGoalStatusArray) },
+			{ "actionlib_msgs/GoalStatus", typeof(ActionGoalStatus) },
+			{ "actionlib_msgs/GoalID", typeof(ActionGoalID) },
+			{ "move_base_msgs/MoveBaseActionFeedback", typeof(MoveBaseActionFeedback) },
+			{ "move_base_msgs/MoveBaseFeedback", typeof(MoveBaseFeedback) },
+			{ "move_base_msgs/MoveBaseActionResult", typeof(MoveBaseActionResult) },
+			{ "move_base_msgs/MoveBaseResult", typeof(MoveBaseResult) },
+			{ "tf2_msgs/TFMessage", typeof(TFMessage) },
+			{ "geometry_msgs/TransformStamped", typeof(GeometryTransformStamped) },
+			{ "geometry_msgs/GeometryTransform", typeof(GeometryTransform) },
             { "geometry_msgs/Twist", typeof(GeometryTwist) },
             { "std_msgs/String", typeof(StandardString) },
             { "geometry_msgs/Accel", typeof(GeometryAccel) },
@@ -41,9 +51,11 @@ namespace RosSharp.RosBridgeClient
             { "sensor_msgs/PointField", typeof(SensorPointField) },
             { "sensor_msgs/Image", typeof(SensorImage) },
             { "sensor_msgs/CompressedImage", typeof(SensorCompressedImage) },
-            { "std_msgs/Time", typeof(StandardTime)    },
+			{ "sensor_msgs/LaserScan", typeof(SensorLaserScan) },
+            { "std_msgs/Time", typeof(StandardTime) },
             { "nav_msgs/MapMetaData", typeof(NavigationMapMetaData) },
-            { "nav_msgs/OccupancyGrid", typeof(NavigationOccupancyGrid)}
+            { "nav_msgs/OccupancyGrid", typeof(NavigationOccupancyGrid)},
+			{ "nav_msgs/Path", typeof(NavigationPath) }
         };
         public static string RosMessageType(Type messageType)
         {

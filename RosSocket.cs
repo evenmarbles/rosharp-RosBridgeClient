@@ -15,7 +15,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -28,11 +27,39 @@ namespace RosSharp.RosBridgeClient
 {
     public class RosSocket
     {
+		#region Public Events
+		public event EventHandler OnOpen;
+		public event EventHandler<EventArgs> OnClose;
+		public event EventHandler<ErrorEventArgs> OnError;
+		#endregion
+
         #region Public
         public RosSocket(string url)
         {
             webSocket = new WebSocket(url);
             webSocket.OnMessage += (sender, e) => recievedOperation((WebSocket)sender, e);
+			webSocket.OnError += (sender, e) => {
+#if DEBUG
+				Console.WriteLine("Error: "  + e.Message);
+#endif
+				OnError.Emit (sender, e);
+			};
+			webSocket.OnOpen += (sender, e) => {
+#if DEBUG
+				Console.WriteLine("Websocket connected to " + ((WebSocket)sender).Url.Host);
+#endif
+				OnOpen.Emit (sender, e);
+			};
+			webSocket.OnClose += (sender, e) => {
+#if DEBUG
+				Console.WriteLine("Websocket disconnected.");
+#endif
+				OnClose.Emit (sender, e);
+			};
+		}
+
+		public void Connect ()
+		{
             webSocket.Connect();
         }
 
@@ -156,7 +183,10 @@ namespace RosSharp.RosBridgeClient
 
         private void recievedOperation(object sender, MessageEventArgs e)
         {
-            JObject operation = Deserialize(e.RawData);
+			byte[] rawData = e.RawData;
+			string data = e.Data.Replace ("null", "0");
+			rawData = Encoding.ASCII.GetBytes (data);
+            JObject operation = Deserialize(rawData);
 
 #if DEBUG
             Console.WriteLine("Recieved " + operation.GetOperation());
@@ -189,10 +219,12 @@ namespace RosSharp.RosBridgeClient
 
             JObject jObject = serviceResponse.GetValues();
             Type type = serviceCaller.objectType;
-            if (type != null)
-                serviceCaller.serviceHandler?.Invoke(jObject.ToObject(type));
-            else
-                serviceCaller.serviceHandler?.Invoke(jObject);
+			if (serviceCaller.serviceHandler != null) {
+				if (type != null)
+					serviceCaller.serviceHandler.Invoke (jObject.ToObject (type));
+				else
+					serviceCaller.serviceHandler.Invoke (jObject);
+			}
         }
 
         private void recievedPublish(JObject publication, byte[] rawData)
@@ -204,7 +236,9 @@ namespace RosSharp.RosBridgeClient
             if (!foundById)
                 subscriber = subscribers.Values.FirstOrDefault(x => x.topic.Equals(publication.GetTopic()));
 
-            subscriber.messageHandler?.Invoke((Message)publication.GetMessage().ToObject(subscriber.messageType));
+			if (subscriber.messageHandler != null) {
+				subscriber.messageHandler.Invoke ((Message)publication.GetMessage ().ToObject (subscriber.messageType));
+			}
         }
 
         private void sendOperation(Operation operation)
