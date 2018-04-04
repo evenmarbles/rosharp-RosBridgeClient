@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 using System;
+using UnityEngine;
 
 namespace RosSharp.RosBridgeClient
 {
@@ -68,47 +69,48 @@ namespace RosSharp.RosBridgeClient
             }
         }
     }
+
     public class Point
+    {
+        public float x;
+        public float y;
+        public float z;
+        public int[] rgb;
+
+        public Point(byte[] bytes)
         {
-            public float x;
-            public float y;
-            public float z;
-            public int[] rgb;
-
-            public Point(byte[] bytes)
-            {
-                byte[] slice = new byte[4];
-                Array.Copy(bytes, 0, slice, 0, 4);
-                x = getValue(slice);
-                Array.Copy(bytes, 4, slice, 0, 4);
-                y = getValue(slice);
-                Array.Copy(bytes, 8, slice, 0, 4);
-                z = getValue(slice);
-                Array.Copy(bytes, 16, slice, 0, 4);
-                rgb = getRGB(slice);
-            }
-
-            public override string ToString()
-            {
-                return "xyz=(" + x.ToString() + ", " + y.ToString() + ", " + z.ToString() + ")"
-                    + "  rgb=(" + rgb[0].ToString() + ", " + rgb[1].ToString() + ", " + rgb[2].ToString() + ")";
-            }
-            private static float getValue(byte[] bytes)
-            {
-                if (!BitConverter.IsLittleEndian)
-                    Array.Reverse(bytes);
-
-                float result = BitConverter.ToSingle(bytes, 0);
-                return result;
-            }
-            private static int[] getRGB(byte[] bytes)
-            {
-                int[] rgb = new int[3];
-                rgb[0] = Convert.ToInt16(bytes[0]);
-                rgb[1] = Convert.ToInt16(bytes[1]);
-                rgb[2] = Convert.ToInt16(bytes[2]);
-                return rgb;
-            }
+            byte[] slice = new byte[4];
+            Array.Copy(bytes, 0, slice, 0, 4);
+            x = getValue(slice);
+            Array.Copy(bytes, 4, slice, 0, 4);
+            y = getValue(slice);
+            Array.Copy(bytes, 8, slice, 0, 4);
+            z = getValue(slice);
+            Array.Copy(bytes, 16, slice, 0, 4);
+            rgb = getRGB(slice);
         }
 
+        public override string ToString()
+        {
+            return "xyz=(" + x.ToString() + ", " + y.ToString() + ", " + z.ToString() + ")"
+                + "  rgb=(" + rgb[0].ToString() + ", " + rgb[1].ToString() + ", " + rgb[2].ToString() + ")";
+        }
+        private static float getValue(byte[] bytes)
+        {
+            if (!BitConverter.IsLittleEndian) 
+                Array.Reverse(bytes);
+
+            float result = BitConverter.ToSingle(bytes, 0);
+            return result;
+        }
+        private static int[] getRGB(byte[] bytes)
+        {
+            int[] rgb = new int[3];
+            rgb[0] = Convert.ToInt16(bytes[0]);
+            rgb[1] = Convert.ToInt16(bytes[1]);
+            rgb[2] = Convert.ToInt16(bytes[2]);
+            return rgb;
+        }
     }
+
+}

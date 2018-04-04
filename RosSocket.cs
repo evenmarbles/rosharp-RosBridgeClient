@@ -15,10 +15,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Threading;
 using WebSocketSharp;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -26,13 +26,61 @@ using System.Text;
 
 namespace RosSharp.RosBridgeClient
 {
+	public class RosSocketEventArgs : EventArgs
+	{
+		public readonly object Sender;
+		public readonly Uri Url;
+		public readonly EventArgs Args;
+		public RosSocketEventArgs (object sender, Uri url, EventArgs args) {
+			this.Sender = sender;
+			this.Url = url;
+			this.Args = args;
+		}
+	}
+
+	public delegate void RosSocketEventHandler (object sender, RosSocketEventArgs e);
+
     public class RosSocket
     {
+		#region Public Events
+		public event RosSocketEventHandler OnOpen;
+		public event RosSocketEventHandler OnClose;
+		public event RosSocketEventHandler OnError;
+        #endregion
+
+        private RosSharedData sharedData;
+        private RosThread producer;
+        private Thread producerThread;
+
         #region Public
         public RosSocket(string url)
         {
+            sharedData = new RosSharedData();
+            producer = new RosThread(sharedData);
+            producerThread = new Thread(new ThreadStart(producer.Process));
+            producerThread.Start();
+
             webSocket = new WebSocket(url);
             webSocket.OnMessage += (sender, e) => recievedOperation((WebSocket)sender, e);
+			webSocket.OnError += (sender, e) => {
+				if (OnError != null) {
+					OnError (this, new RosSocketEventArgs (sender, ((WebSocket)sender).Url, e));
+				}
+			};
+			webSocket.OnOpen += (sender, e) => {
+				if (OnOpen != null) {
+					OnOpen (this, new RosSocketEventArgs (sender, ((WebSocket)sender).Url, e));
+				}
+			};
+			webSocket.OnClose += (sender, e) => {
+				if (OnClose != null) {
+					OnClose (this, new RosSocketEventArgs (sender, ((WebSocket)sender).Url, e));
+				}
+			};
+		}
+
+		public void Connect ()
+		{
             webSocket.Connect();
         }
 
@@ -41,14 +89,15 @@ namespace RosSharp.RosBridgeClient
             while (publishers.Count > 0)
                 Unadvertize(publishers.First().Key);
 
-            while (subscribers.Count > 0)
-                Unsubscribe(subscribers.First().Key);
+            lock (sharedData.SubscribersLock)
+            {
+                while (sharedData.SubscribersCount > 0)
+                    Unsubscribe(sharedData.FirstSubscriberKey);
+            }
 
+            producer.IsAlive = false;
             webSocket.Close();
         }
-
-        public delegate void ServiceHandler(object obj);
-        public delegate void MessageHandler(Message message);
 
         public int Advertize(string topic, string type)
         {
@@ -72,23 +121,20 @@ namespace RosSharp.RosBridgeClient
             publishers.Remove(id);
         }
 
-
-
-        public int Subscribe(string topic, string rosMessageType, MessageHandler messageHandler, int throttle_rate = 0, int queue_length = 1, int fragment_size = int.MaxValue, string compression = "none")
+        public int Subscribe(string topic, string rosMessageType, RosSharedData.MessageHandler messageHandler, int throttle_rate = 0, int queue_length = 1, int fragment_size = int.MaxValue, string compression = "none")
         {
-
             Type messageType = MessageTypes.MessageType(rosMessageType);
             if (messageType==null)
                 return 0;
 
             int id = generateId();
-            subscribers.Add(id, new Subscriber(topic, messageType, messageHandler));
+            sharedData.AddSubscriber(id, topic, messageType, messageHandler);
             sendOperation(new Subscription(id, topic, rosMessageType, throttle_rate, queue_length, fragment_size, compression));
             return id;
 
         }
 
-        public int Subscribe(string topic, Type messageType, MessageHandler messageHandler, int throttle_rate = 0, int queue_length = 1, int fragment_size = int.MaxValue, string compression = "none")
+        public int Subscribe(string topic, Type messageType, RosSharedData.MessageHandler messageHandler, int throttle_rate = 0, int queue_length = 1, int fragment_size = int.MaxValue, string compression = "none")
         {
             string rosMessageType = MessageTypes.RosMessageType(messageType);
             if (rosMessageType == null)
@@ -99,14 +145,14 @@ namespace RosSharp.RosBridgeClient
 
         public void Unsubscribe(int id)
         {
-            sendOperation(new Unsubscription(id, subscribers[id].topic));
-            subscribers.Remove(id);
+            string topic = sharedData.RemoveSubscriber(id);
+            sendOperation(new Unsubscription(id, topic));
         }
 
-        public int CallService(string service, Type objectType, ServiceHandler serviceHandler, object args = null)
+        public int CallService(string service, Type objectType, RosSharedData.ServiceHandler serviceHandler, object args = null)
         {
             int id = generateId();
-            serviceCallers.Add(id, new ServiceCaller(service, objectType, serviceHandler));
+            sharedData.AddServiceCaller(id, service, objectType, serviceHandler);
 
             sendOperation(new ServiceCall(id, service, args));
             return id;
@@ -124,87 +170,24 @@ namespace RosSharp.RosBridgeClient
             }
         }
 
-        internal struct Subscriber
-        {
-            internal string topic;
-            internal Type messageType;
-            internal MessageHandler messageHandler;
-            internal Subscriber(string Topic, Type MessageType, MessageHandler MessageHandler)
-            {
-                topic = Topic;
-                messageType = MessageType;
-                messageHandler = MessageHandler;
-            }
-        }
-        internal struct ServiceCaller
-        {
-            internal string service;
-            internal Type objectType;
-            internal ServiceHandler serviceHandler;
-            internal ServiceCaller(string Service, Type ObjectType, ServiceHandler ServiceHandler)
-            {
-                service = Service;
-                objectType = ObjectType;
-                serviceHandler = ServiceHandler;
-            }
-        }
-
         private WebSocket webSocket;
         private Dictionary<int, Publisher> publishers = new Dictionary<int, Publisher>();
-        private Dictionary<int, Subscriber> subscribers = new Dictionary<int, Subscriber>();
-        private Dictionary<int, ServiceCaller> serviceCallers = new Dictionary<int, ServiceCaller>();
 
-        private void recievedOperation(object sender, MessageEventArgs e)
+        private void recievedOperation(object sender, WebSocketSharp.MessageEventArgs e)
         {
-            JObject operation = Deserialize(e.RawData);
+			byte[] rawData = e.RawData;
+			string data = e.Data.Replace ("null", "0");
+			rawData = Encoding.ASCII.GetBytes (data);
+            JObject operation = Deserialize(rawData);
 
 #if DEBUG
             Console.WriteLine("Recieved " + operation.GetOperation());
             Console.WriteLine(JsonConvert.SerializeObject(operation, Formatting.Indented));
 #endif
-
-            switch (operation.GetOperation())
+            lock (sharedData.ReceiveLock)
             {
-                case "publish":
-                    {
-                        recievedPublish(operation, e.RawData);
-                        return;
-                    }
-                case "service_response":
-                    {
-                        recievedServiceResponse(operation, e.RawData);
-                        return;
-                    }
+                sharedData.ReceiveQueue.Enqueue(operation);
             }
-        }
-
-        private void recievedServiceResponse(JObject serviceResponse, byte[] rawData)
-        {
-            ServiceCaller serviceCaller;
-            bool foundById = serviceCallers.TryGetValue(serviceResponse.GetServiceId(), out serviceCaller);
-
-            if (!foundById)
-                serviceCaller = serviceCallers.Values.FirstOrDefault(x => x.service.Equals(serviceResponse.GetService()));
-
-
-            JObject jObject = serviceResponse.GetValues();
-            Type type = serviceCaller.objectType;
-            if (type != null)
-                serviceCaller.serviceHandler?.Invoke(jObject.ToObject(type));
-            else
-                serviceCaller.serviceHandler?.Invoke(jObject);
-        }
-
-        private void recievedPublish(JObject publication, byte[] rawData)
-        {
-            Subscriber subscriber;
-
-            bool foundById = subscribers.TryGetValue(publication.GetServiceId(), out subscriber);
-
-            if (!foundById)
-                subscriber = subscribers.Values.FirstOrDefault(x => x.topic.Equals(publication.GetTopic()));
-
-            subscriber.messageHandler?.Invoke((Message)publication.GetMessage().ToObject(subscriber.messageType));
         }
 
         private void sendOperation(Operation operation)
