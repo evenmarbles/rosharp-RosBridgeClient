@@ -26,26 +26,27 @@ using System.Text;
 
 namespace RosSharp.RosBridgeClient
 {
-	public class RosSocketEventArgs : EventArgs
-	{
-		public readonly object Sender;
-		public readonly Uri Url;
-		public readonly EventArgs Args;
-		public RosSocketEventArgs (object sender, Uri url, EventArgs args) {
-			this.Sender = sender;
-			this.Url = url;
-			this.Args = args;
-		}
-	}
+    public class RosSocketEventArgs : EventArgs
+    {
+        public readonly object Sender;
+        public readonly Uri Url;
+        public readonly EventArgs Args;
+        public RosSocketEventArgs(object sender, Uri url, EventArgs args)
+        {
+            this.Sender = sender;
+            this.Url = url;
+            this.Args = args;
+        }
+    }
 
-	public delegate void RosSocketEventHandler (object sender, RosSocketEventArgs e);
+    public delegate void RosSocketEventHandler(object sender, RosSocketEventArgs e);
 
     public class RosSocket
     {
-		#region Public Events
-		public event RosSocketEventHandler OnOpen;
-		public event RosSocketEventHandler OnClose;
-		public event RosSocketEventHandler OnError;
+        #region Public Events
+        public event RosSocketEventHandler OnOpen;
+        public event RosSocketEventHandler OnClose;
+        public event RosSocketEventHandler OnError;
         #endregion
 
         private RosSharedData sharedData;
@@ -62,25 +63,31 @@ namespace RosSharp.RosBridgeClient
 
             webSocket = new WebSocket(url);
             webSocket.OnMessage += (sender, e) => recievedOperation((WebSocket)sender, e);
-			webSocket.OnError += (sender, e) => {
-				if (OnError != null) {
-					OnError (this, new RosSocketEventArgs (sender, ((WebSocket)sender).Url, e));
-				}
-			};
-			webSocket.OnOpen += (sender, e) => {
-				if (OnOpen != null) {
-					OnOpen (this, new RosSocketEventArgs (sender, ((WebSocket)sender).Url, e));
-				}
-			};
-			webSocket.OnClose += (sender, e) => {
-				if (OnClose != null) {
-					OnClose (this, new RosSocketEventArgs (sender, ((WebSocket)sender).Url, e));
-				}
-			};
-		}
+            webSocket.OnError += (sender, e) =>
+            {
+                if (OnError != null)
+                {
+                    OnError(this, new RosSocketEventArgs(sender, ((WebSocket)sender).Url, e));
+                }
+            };
+            webSocket.OnOpen += (sender, e) =>
+            {
+                if (OnOpen != null)
+                {
+                    OnOpen(this, new RosSocketEventArgs(sender, ((WebSocket)sender).Url, e));
+                }
+            };
+            webSocket.OnClose += (sender, e) =>
+            {
+                if (OnClose != null)
+                {
+                    OnClose(this, new RosSocketEventArgs(sender, ((WebSocket)sender).Url, e));
+                }
+            };
+        }
 
-		public void Connect ()
-		{
+        public void Connect()
+        {
             webSocket.Connect();
         }
 
@@ -124,7 +131,7 @@ namespace RosSharp.RosBridgeClient
         public int Subscribe(string topic, string rosMessageType, RosSharedData.MessageHandler messageHandler, int throttle_rate = 0, int queue_length = 1, int fragment_size = int.MaxValue, string compression = "none")
         {
             Type messageType = MessageTypes.MessageType(rosMessageType);
-            if (messageType==null)
+            if (messageType == null)
                 return 0;
 
             int id = generateId();
@@ -175,9 +182,9 @@ namespace RosSharp.RosBridgeClient
 
         private void recievedOperation(object sender, WebSocketSharp.MessageEventArgs e)
         {
-			byte[] rawData = e.RawData;
-			string data = e.Data.Replace ("null", "0");
-			rawData = Encoding.ASCII.GetBytes (data);
+            byte[] rawData = e.RawData;
+            string data = e.Data.Replace("null", "0");
+            rawData = Encoding.ASCII.GetBytes(data);
             JObject operation = Deserialize(rawData);
 
 #if DEBUG
